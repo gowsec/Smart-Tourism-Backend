@@ -59,7 +59,7 @@ if __name__ == "__main__":
     print("--- HỆ THỐNG DU LỊCH THÔNG MINH (MÔ PHỎNG) ---")
     
     # Kịch bản: Anh A nhập chữ 'L' [cite: 300]
-    query = "L"
+    query = str(input('Nhap noi ban muon den: '))
     suggestions = engine.search_suggestions(query)
     
     if suggestions:
