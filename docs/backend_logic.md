@@ -16,4 +16,4 @@
 4. **Output**: Trả về Top 5 gợi ý (JSON format).
 4. **Output**: Trả về Top 5 gợi ý (JSON format).
 
-![Sơ đồ Workflow Autocomplete](docs/workflow.png)
+![Sơ đồ Workflow Autocomplete](./workflow.png)
