@@ -46,17 +46,4 @@ def print_route_summary(data):
         print(f"⏱️ Thời gian: {route.get('duration')}")
         print("-" * 40)
 
-# --- CHƯƠNG TRÌNH CHÍNH (THỬ NGHIỆM) ---
-if __name__ == "__main__":
-    MY_KEY = "DÁN_MÃ_API_KEY_CỦA_BẠN_VÀO_ĐÂY"
-    
-    # Gọi function
-    result = get_google_maps_directions(
-        api_key=MY_KEY,
-        origin="Hồ Con Rùa, Quận 3, TP.HCM",
-        destination="Landmark 81, Bình Thạnh, TP.HCM",
-        mode="0" # Đi bằng ô tô
-    )
-    
-    # In kết quả
-    print_route_summary(result)
+# 

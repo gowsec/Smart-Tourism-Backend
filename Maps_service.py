@@ -47,6 +47,6 @@ def run_final_test(api_key, location_name):
     else:
         print(" Vẫn không tìm thấy data_id. Hãy thử từ khóa khác phổ biến hơn.")
 
-# --- CHẠY THỬ ---
-MY_KEY = "LET INPUT API KEY" 
-run_final_test(MY_KEY, "Bitexco Financial Tower")
+# # --- CHẠY THỬ ---
+# MY_KEY = "LET INPUT API KEY" 
+# run_final_test(MY_KEY, "Bitexco Financial Tower")

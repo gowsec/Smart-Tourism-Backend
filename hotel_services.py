@@ -60,10 +60,10 @@ def get_smart_hotel_recommendations(api_key, location, max_budget_per_night, tot
         print(f"Lỗi khi gọi API: {e}")
         return []
 
-# --- PHẦN CHẠY THỬ (Dành cho Quang test máy M2) ---
-if __name__ == "__main__":
-    MY_KEY = "224510105a5f1f5261d1829e0cb90cd6a67ca3fccd09622fbe568bd5e514c801"
-    # Giả sử Anh A dành 10 triệu cho khách sạn trong 3 đêm -> ~3.3 triệu/đêm
-    recommendations = get_smart_hotel_recommendations(MY_KEY, "Hà Nội", 99000000)
+# # --- PHẦN CHẠY THỬ (Dành cho Quang test máy M2) ---
+# if __name__ == "__main__":
+#     MY_KEY = "224510105a5f1f5261d1829e0cb90cd6a67ca3fccd09622fbe568bd5e514c801"
+#     # Giả sử Anh A dành 10 triệu cho khách sạn trong 3 đêm -> ~3.3 triệu/đêm
+#     recommendations = get_smart_hotel_recommendations(MY_KEY, "Hà Nội", 99000000)
     
-    print(json.dumps(recommendations, indent=2, ensure_ascii=False))
+#     print(json.dumps(recommendations, indent=2, ensure_ascii=False))

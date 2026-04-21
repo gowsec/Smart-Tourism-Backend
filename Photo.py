@@ -43,9 +43,9 @@ def search_google_maps(keyword, location_coords, api_key, lang="vi"):
         print(f"Có lỗi xảy ra: {e}")
         return None
 
-# --- CÁCH SỬ DỤNG ---
-MY_API_KEY = "DÁN_KEY_CỦA_BẠN_VÀO_ĐÂY"
-MY_LOCATION = "@10.762622,106.660172,15z"
+# # --- CÁCH SỬ DỤNG ---
+# MY_API_KEY = "DÁN_KEY_CỦA_BẠN_VÀO_ĐÂY"
+# MY_LOCATION = "@10.762622,106.660172,15z"
 
-# Gọi hàm
-data = search_google_maps("tiệm bánh", MY_LOCATION, MY_API_KEY)
+# # Gọi hàm
+# data = search_google_maps("tiệm bánh", MY_LOCATION, MY_API_KEY)

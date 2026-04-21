@@ -61,12 +61,12 @@ def get_smart_flight_recommendations(api_key, departure_id, arrival_id, max_tota
         print(f"Lỗi khi gọi API Flight: {e}")
         return []
 
-# --- PHẦN CHẠY THỬ (Dành cho Quang test máy M2) ---
-if __name__ == "__main__":
-    MY_KEY = "224510105a5f1f5261d1829e0cb90cd6a67ca3fccd09622fbe568bd5e514c801"
+# # --- PHẦN CHẠY THỬ (Dành cho Quang test máy M2) ---
+# if __name__ == "__main__":
+#     MY_KEY = "224510105a5f1f5261d1829e0cb90cd6a67ca3fccd09622fbe568bd5e514c801"
     
-    # Giả sử Anh A dành tối đa 8 triệu cho vé máy bay khứ hồi cả nhà
-    # SGN: Sân bay Tân Sơn Nhất, HAN: Sân bay Nội Bài
-    flight_results = get_smart_flight_recommendations(MY_KEY, "SGN", "HAN", 8000000)
+#     # Giả sử Anh A dành tối đa 8 triệu cho vé máy bay khứ hồi cả nhà
+#     # SGN: Sân bay Tân Sơn Nhất, HAN: Sân bay Nội Bài
+#     flight_results = get_smart_flight_recommendations(MY_KEY, "SGN", "HAN", 8000000)
     
-    print(json.dumps(flight_results, indent=2, ensure_ascii=False))
+#     print(json.dumps(flight_results, indent=2, ensure_ascii=False))
