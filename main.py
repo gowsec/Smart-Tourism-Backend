@@ -12,6 +12,7 @@ import google.generativeai as genai
 # Import các service
 from hotel_services import get_smart_hotel_recommendations
 from flight_services import get_smart_flight_recommendations
+from direction_service import get_all_modes_directions
 
 load_dotenv()
 app = Flask(__name__)
@@ -52,10 +53,8 @@ def chat_gemini():
             return jsonify({"success": False, "error": "Empty response"})
 
     except Exception as e:
-        # Hưng nhớ nhìn vào Terminal để copy dòng này cho mình nhé!
         print(f"❌ DEBUG LỖI THỰC TẾ: {str(e)}")
-        
-        # Câu dự phòng mới để Hưng biết là code đã được cập nhật
+  
         return jsonify({
             "success": True, 
             "text": f"Hệ thống Gemini đang phản hồi chậm. Bạn muốn biết gì về khách sạn ở {location} không?"
@@ -86,35 +85,79 @@ def get_real_activities(location, query_type):
             "api_key": SERPAPI_KEY
         })
         results = search.get_dict().get("local_results", [])
-        return [
-            {
+        processed_results = []
+        for r in results:
+            # 1. Tìm ảnh ở nhiều nguồn khác nhau trong dữ liệu API
+            # Thử lấy 'thumbnail', nếu không có thì lấy 'featured_image'
+            img_url = r.get("thumbnail") or r.get("featured_image")
+            
+            # 2. Nếu hoàn toàn không có ảnh, dùng ảnh mặc định (Placeholder)
+            if not img_url:
+                img_url = "https://via.placeholder.com/300x200?text=S-Trip+No+Image"
+
+            coords = r.get("gps_coordinates", {})
+            processed_results.append({
                 "name": r.get("title"),
                 "rating": str(r.get("rating", "4.5")),
                 "price": "Giá tùy chọn",
                 "desc": r.get("description", f"Địa điểm {query_type} nổi tiếng."),
-                "thumbnail": r.get("thumbnail")
-            } for r in results[:15]
-        ]
+                "thumbnail": img_url,
+                "lat": coords.get("latitude"),   # Google Maps coordinates
+                "lng": coords.get("longitude"),  # → MapBubble dùng trực tiếp
+            })
+            
+        return processed_results[:15]
+
     except Exception as e:
         print(f"[Lỗi SerpAPI - {query_type}] {str(e)}")
         return []
 
 
+@app.route("/api/directions", methods=["GET"])
+def directions():
+    """
+    Lấy khoảng cách + thời gian giữa 2 điểm cho tất cả phương tiện.
+    Query params:
+      origin      — tên hoặc "lat,lng"
+      destination — tên hoặc "lat,lng"
+    """
+    origin      = request.args.get("origin", "")
+    destination = request.args.get("destination", "")
+    if not origin or not destination:
+        return jsonify({"success": False, "error": "Thiếu origin hoặc destination"}), 400
+    try:
+        modes = get_all_modes_directions(SERPAPI_KEY, origin, destination)
+        return jsonify({"success": True, "modes": modes})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/plan-trip", methods=["GET"])
 def plan_trip():
     location = request.args.get("location", "Đà Lạt")
-    budget = int(re.sub(r"[^\d]", "", request.args.get("budget", "3000000")))
-    dest_iata = CITY_TO_IATA.get(location, "HAN")
+    budget_raw = request.args.get("budget", "5000000")
+    budget = int(re.sub(r"[^\d]", "", budget_raw))
+    departure_date = request.args.get("departure_date", "2026-05-30")
+
+    # Xử lý chuỗi "4 ngày 3 đêm" để lấy số ngày chuẩn
+    days_raw = request.args.get("days", "3")
+    match = re.search(r'\d+', days_raw)
+    num_days = int(match.group()) if match else 3
+    
+    passengers = int(request.args.get("passengers", 1))
+    
+    # Phân bổ ngân sách (40% cho mỗi dịch vụ)
+    hotel_budget = budget * 0.4 
+    flight_budget = budget * 0.4
 
     try:
-        hotels = get_smart_hotel_recommendations(
-            SERPAPI_KEY, f"{location}, Vietnam", (budget * 0.4) / 2
-        ) if SERPAPI_KEY else []
+        # 1. Tìm Khách sạn
+        hotels = get_smart_hotel_recommendations(SERPAPI_KEY, location, hotel_budget, num_days, passengers, departure_date)
+        
+        # 2. Tìm Vé máy bay
+        flights = get_smart_flight_recommendations(SERPAPI_KEY, "SGN", CITY_TO_IATA.get(location, "HAN"), flight_budget, num_days, passengers, departure_date)
 
-        flights = get_smart_flight_recommendations(
-            SERPAPI_KEY, "SGN", dest_iata, budget * 0.4
-        ) if SERPAPI_KEY else []
-
+        # 3. Lấy lại Tours và Foods đã mất
         tours = get_real_activities(location, "Điểm tham quan")
         foods = get_real_activities(location, "Quán ăn ngon")
 
@@ -123,12 +166,12 @@ def plan_trip():
             "plan": {
                 "hotels": hotels or [],
                 "flights": flights or [],
-                "tours": tours or [],    # ✅ Trả về tours cho frontend
-                "foods": foods or [],    # ✅ Trả về foods cho frontend
+                "tours": tours or [],
+                "foods": foods or []
             }
         })
     except Exception as e:
-        print(f"[Lỗi plan_trip] {str(e)}")
+        print(f"Lỗi plan_trip: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
