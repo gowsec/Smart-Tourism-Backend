@@ -4,8 +4,6 @@
 import os, re
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-app = Flask(__name__)
-CORS(app)
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -18,7 +16,7 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
+SERPAPI_KEY = os.getenv("SERPAPI_KEY", "") # ae5111d31011d5745569d2607729352381b0093772e1620e67a59b46cac49187
 GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
 
 if GEMINI_KEY:
@@ -84,6 +82,12 @@ def get_real_activities(location, query_type):
             "hl": "vi",
             "api_key": SERPAPI_KEY
         })
+
+        search_data = search.get_dict()
+
+        if "error" in search_data:
+            print("🚨 LỖI SERPAPI:", search_data["error"])
+
         results = search.get_dict().get("local_results", [])
         processed_results = []
         for r in results:
@@ -102,8 +106,9 @@ def get_real_activities(location, query_type):
                 "price": "Giá tùy chọn",
                 "desc": r.get("description", f"Địa điểm {query_type} nổi tiếng."),
                 "thumbnail": img_url,
-                "lat": coords.get("latitude"),   # Google Maps coordinates
-                "lng": coords.get("longitude"),  # → MapBubble dùng trực tiếp
+                "lat": coords.get("latitude"),
+                "lng": coords.get("longitude"),
+                "place_id": r.get("place_id") or r.get("data_id", ""),  # ← dùng cho reviews chính xác
             })
             
         return processed_results[:15]
@@ -174,6 +179,123 @@ def plan_trip():
         print(f"Lỗi plan_trip: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+
+@app.route("/api/reviews", methods=["GET"])
+def get_place_reviews():
+    place    = request.args.get("place", "")
+    place_id = request.args.get("place_id", "")
+
+    if place_id and not (place_id.startswith("ChIJ") or "0x" in place_id):
+        place_id = ""
+
+    if not place and not place_id:
+        return jsonify({"success": False, "reviews": []})
+    
+    GoogleSearch = get_google_search()
+    if not GoogleSearch:
+        return jsonify({"success": True, "reviews": []})
+        
+    try:
+        reviews = []
+        total_reviews = 0
+        
+        # 1. FALLBACK: NẾU KHÔNG CÓ PLACE_ID, TÌM BẰNG TÊN TRƯỚC
+        if not place_id and place:
+            search_data = GoogleSearch({"engine": "google_maps", "q": place, "hl": "vi", "api_key": SERPAPI_KEY}).get_dict()
+            place_results = search_data.get("place_results", {})
+            
+            # Ưu tiên 1: Cố lấy ID từ place_results
+            place_id = place_results.get("place_id") or place_results.get("data_id", "")
+            
+            # Ưu tiên 2: Cố lấy ID từ local_results (hay gặp ở Điểm tham quan/Ăn uống)
+            if not place_id:
+                local_results = search_data.get("local_results", [])
+                if local_results and len(local_results) > 0:
+                    place_id = local_results[0].get("place_id") or local_results[0].get("data_id", "")
+            
+            # Ưu tiên 3 (Dành cho Khách sạn): Không có ID nhưng Maps trả sẵn review thì hốt luôn
+            if not place_id and "reviews" in place_results:
+                reviews = place_results.get("reviews", [])
+                total_reviews = place_results.get("reviews_unparsed", len(reviews))
+
+        # 2. KHI ĐÃ CÓ ID (Do Frontend truyền hoặc do Fallback tìm ra)
+        if place_id:
+            params = {"engine": "google_maps_reviews", "place_id": place_id, "hl": "vi", "api_key": SERPAPI_KEY}
+            data = GoogleSearch(params).get_dict()
+            
+            # Nếu request không bị lỗi
+            if "error" not in data:
+                reviews = data.get("reviews", [])
+                total_reviews = data.get("place_info", {}).get("reviews") or len(reviews)
+
+        # 3. CHUẨN HÓA DỮ LIỆU TRẢ VỀ FRONTEND
+        result  = [{
+            "user":    r.get("user", {}).get("name", "Ẩn danh"),
+            "avatar":  r.get("user", {}).get("thumbnail"),
+            "rating":  r.get("rating"),
+            "content": r.get("snippet", "") or r.get("text", ""),
+            "date":    r.get("date", ""),
+            "photos":  r.get("images", [])
+        } for r in reviews]
+        
+        return jsonify({"success": True, "reviews": result, "total": total_reviews})
+        
+    except Exception as e:
+        print(f"[Lỗi reviews] {e}")
+        return jsonify({"success": False, "reviews": [], "error": str(e)})
+
+
+@app.route("/api/images", methods=["GET"])
+def get_place_images():
+    place = request.args.get("place", "")
+    # Frontend truyền lên là place_id, nhưng ta sẽ xử lý nó như data_id
+    passed_id = request.args.get("place_id", "")
+    
+    # Engine google_maps_photos BẮT BUỘC dùng định dạng ID là 0x...:0x...
+    # Nếu ID gửi lên là dãy số hoặc ChIJ..., ta xóa đi để bắt Fallback tìm lại đúng chuẩn 0x...
+    data_id = passed_id if passed_id and "0x" in passed_id else ""
+
+    if not place and not data_id:
+        return jsonify({"success": False, "images": []})
+        
+    GoogleSearch = get_google_search()
+    if not GoogleSearch:
+        return jsonify({"success": True, "images": []})
+        
+    try:
+        photos = []
+        
+        # 1. FALLBACK: TÌM LẠI ĐÚNG DATA_ID CHUẨN (0x...:0x...)
+        if not data_id and place:
+            search_data = GoogleSearch({"engine": "google_maps", "q": place, "hl": "vi", "api_key": SERPAPI_KEY}).get_dict()
+            place_results = search_data.get("place_results", {})
+            
+            # Lấy data_id thay vì place_id
+            data_id = place_results.get("data_id")
+            
+            if not data_id:
+                local_results = search_data.get("local_results", [])
+                if local_results and len(local_results) > 0:
+                    data_id = local_results[0].get("data_id")
+
+        # 2. GỌI ENGINE LẤY ẢNH VỚI THAM SỐ `data_id`
+        if data_id:
+            params = {
+                "engine": "google_maps_photos", 
+                "data_id": data_id, # <--- SỬA CHÍNH MẠNG Ở ĐÂY: API này đòi tên tham số là data_id
+                "hl": "vi", 
+                "api_key": SERPAPI_KEY
+            }
+            data = GoogleSearch(params).get_dict()
+            photos = data.get("photos", [])
+            
+        images = [p.get("image") or p.get("thumbnail") for p in photos if p.get("image") or p.get("thumbnail")]
+        return jsonify({"success": True, "images": images[:15]}) 
+        
+    except Exception as e:
+        print(f"[Lỗi images] {e}")
+        return jsonify({"success": False, "images": []})
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

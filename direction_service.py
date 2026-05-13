@@ -119,7 +119,7 @@ def _parse_meters(distance_str):
     """'1,2 km' → 1200 (int meters). '500 m' → 500."""
     if not distance_str:
         return 0
-    s = distance_str.replace(",", ".").lower()
+    s = str(distance_str).replace(",", ".").lower()  # Fix: SerpAPI đôi khi trả int
     try:
         if "km" in s:
             return int(float(s.replace("km", "").strip()) * 1000)
@@ -134,6 +134,7 @@ def _parse_seconds(duration_str):
     """'1 giờ 20 phút' → 4800 (int seconds). '25 phút' → 1500."""
     if not duration_str:
         return 0
+    duration_str = str(duration_str)  # Fix: đảm bảo là string
     import re
     total = 0
     h = re.search(r'(\d+)\s*(giờ|h|hour)', duration_str, re.IGNORECASE)
